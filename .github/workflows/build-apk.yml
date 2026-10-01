@@ -1,0 +1,61 @@
+name: Gerar APK Android
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'FeltrandoSonhosAndroid-ProjetoCompleto.zip'
+      - '.github/workflows/build-apk.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar ferramentas necessárias
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+
+      - name: Extrair projeto Android
+        run: |
+          mkdir -p projeto
+          unzip -q "FeltrandoSonhosAndroid-ProjetoCompleto.zip" -d projeto
+
+      - name: Encontrar projeto Gradle
+        run: |
+          echo "Conteúdo extraído:"
+          find projeto -maxdepth 3 -type f | head -100
+
+      - name: Dar permissão ao Gradle
+        run: |
+          chmod +x $(find projeto -name gradlew -type f | head -1)
+
+      - name: Gerar APK
+        working-directory: projeto
+        run: |
+          GRADLEW=$(find . -name gradlew -type f | head -1)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "ERRO: arquivo gradlew não encontrado."
+            exit 1
+          fi
+
+          DIR=$(dirname "$GRADLEW")
+          cd "$DIR"
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Localizar APK
+        run: |
+          echo "APKs encontrados:"
+          find projeto -type f -name "*.apk" -print
+
+      - name: Salvar APK como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: FeltrandoSonhos-APK
+          path: projeto/**/*.apk
+          if-no-files-found: error
